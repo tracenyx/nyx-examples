@@ -1,0 +1,68 @@
+# ─────────────────────────────────────────────────────────────
+# Payments ingress allowlist (PCI-style hardening)
+#
+# Restricts a sensitive service to a single allowed caller. On top
+# of a default-deny baseline, this reopens exactly one path:
+# api-gateway → payments on TCP 8080. Both halves are required —
+# egress allow on the caller, ingress allow on payments. No other
+# workload can reach payments.
+#
+# Scope:    namespace (NyxNetworkPolicy)
+# Enforces: allow api-gateway → payments on TCP 8080, nothing else
+# Docs:     https://docs.tracenyx.ai/guides/ingress-allowlist
+# ─────────────────────────────────────────────────────────────
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxNetworkPolicy
+metadata:
+  name: allow-api-gateway-to-payments-egress
+  namespace: cloudmart-api
+  annotations:
+    nyx.tracenyx.io/description: "Allow api-gateway egress to payments. Only api-gateway may reach payments."
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  priority: 100
+  enforcement: enforce
+  policyTypes:
+    - Egress
+  egress:
+    - decision: Allow
+      toNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cloudmart-payments
+      toPodSelector:
+        matchLabels:
+          app: payments
+      ports:
+        - port: 8080
+          protocol: TCP
+
+---
+
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxNetworkPolicy
+metadata:
+  name: allow-payments-ingress-from-api-gateway
+  namespace: cloudmart-payments
+  annotations:
+    nyx.tracenyx.io/description: "Allow payments ingress from api-gateway only."
+spec:
+  podSelector:
+    matchLabels:
+      app: payments
+  priority: 100
+  enforcement: enforce
+  policyTypes:
+    - Ingress
+  ingress:
+    - decision: Allow
+      fromNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cloudmart-api
+      fromPodSelector:
+        matchLabels:
+          app: api-gateway
+      ports:
+        - port: 8080
+          protocol: TCP

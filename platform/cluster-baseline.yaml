@@ -1,0 +1,35 @@
+# ─────────────────────────────────────────────────────────────
+# Platform guardrail — block a threat-intel CIDR (cluster-wide)
+#
+# A platform-tier policy that no application team can override.
+# Priority 5 sits in the platform-override band (0–99), so it is
+# evaluated before any namespace- or workload-band rule — the block
+# fires first and evaluation stops. Use this shape for org-wide
+# guardrails (threat-intel blocklists, banned destinations).
+#
+# CIDR below is 198.51.100.0/24 (TEST-NET-3, RFC 5737) — a safe
+# stand-in for a real threat-intel CIDR. Replace with your own.
+#
+# Scope:    cluster-wide (NyxClusterNetworkPolicy, tier: platform)
+# Enforces: deny egress to the listed CIDR for all matched namespaces
+# Docs:     https://docs.tracenyx.ai/platform/cluster-policies
+# ─────────────────────────────────────────────────────────────
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxClusterNetworkPolicy
+metadata:
+  name: cluster-block-threat-cidr
+  annotations:
+    nyx.tracenyx.io/description: "Platform-override egress block for a threat-intel CIDR. No namespace- or workload-band policy can override it."
+spec:
+  tier: platform
+  priority: 5
+  enforcement: enforce
+  namespaceSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: cloudmart
+  policyTypes:
+    - Egress
+  egress:
+    - decision: Deny
+      toIpBlock:
+        cidr: 198.51.100.0/24

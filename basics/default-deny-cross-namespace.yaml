@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────
+# Default deny — cross-namespace traffic
+#
+# Denies all cross-namespace ingress and egress for a namespace.
+# Same-namespace (intra-namespace) traffic is unaffected and keeps
+# flowing. Apply one policy per namespace you want to isolate —
+# two representative namespaces are shown below; repeat the pattern
+# for each.
+#
+# Specific cross-namespace paths are reopened by lower-numbered
+# namespace-band allow policies (priority 100), which evaluate
+# first and punch through this baseline. See
+# basics/allow-frontend-to-api-gateway.yaml.
+#
+# Scope:    cluster-wide (NyxClusterNetworkPolicy, tier: platform)
+# Enforces: deny cross-namespace, allow same-namespace
+# Docs:     https://docs.tracenyx.ai/concepts/default-deny
+# ─────────────────────────────────────────────────────────────
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxClusterNetworkPolicy
+metadata:
+  name: deny-cross-namespace-frontend
+  annotations:
+    nyx.tracenyx.io/description: "Deny ingress/egress for the frontend namespace except same-namespace traffic."
+spec:
+  tier: platform
+  priority: 10000
+  enforcement: enforce
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: cloudmart-frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - decision: Deny
+      fromNamespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: [cloudmart-frontend]
+  egress:
+    - decision: Deny
+      toNamespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: [cloudmart-frontend]
+
+---
+
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxClusterNetworkPolicy
+metadata:
+  name: deny-cross-namespace-api
+  annotations:
+    nyx.tracenyx.io/description: "Deny ingress/egress for the api namespace except same-namespace traffic."
+spec:
+  tier: platform
+  priority: 10000
+  enforcement: enforce
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: cloudmart-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - decision: Deny
+      fromNamespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: [cloudmart-api]
+  egress:
+    - decision: Deny
+      toNamespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: [cloudmart-api]

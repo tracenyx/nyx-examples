@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────────────
+# Allow FQDN egress — Stripe only
+#
+# Opens egress from the payments workload to specific hostnames
+# only (api.stripe.com, auth.stripe.com). Nyx enforces this by
+# inspecting the TLS SNI in the ClientHello at the kernel — the
+# hostname must match for the allow to fire. Same IP, different
+# hostname = denied. All other external egress stays denied by the
+# default-deny baseline (see basics/default-deny-cross-namespace).
+#
+#
+# Scope:    namespace (NyxNetworkPolicy)
+# Enforces: allow egress to Stripe FQDNs on TCP 443, nothing else
+# Docs:     https://docs.tracenyx.ai/guides/fqdn-egress
+# ─────────────────────────────────────────────────────────────
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxNetworkPolicy
+metadata:
+  name: payments-approved-egress
+  namespace: cloudmart-payments
+  annotations:
+    nyx.tracenyx.io/description: "Allow payments egress to Stripe FQDNs only. All other external egress remains denied by the default-deny baseline."
+spec:
+  podSelector:
+    matchLabels:
+      app: payments
+  priority: 100
+  enforcement: enforce
+  policyTypes:
+    - Egress
+  egress:
+    - decision: Allow
+      toFqdn:
+        - matchName: api.stripe.com
+      ports:
+        - port: 443
+          protocol: TCP
+    - decision: Allow
+      toFqdn:
+        - matchName: auth.stripe.com
+      ports:
+        - port: 443
+          protocol: TCP

@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────
+# Linux/Windows parity — cross-platform allow path
+#
+# The same policy model spans both platforms. This example opens
+# one path from a Linux workload to a Windows workload:
+#   - egress allow on the Linux source, enforced by eBPF
+#   - ingress allow on the Windows destination, enforced by WFP
+# Identical CRD, identical fields — only the enforcement engine
+# differs per node OS. Both halves are required; removing either
+# closes the path.
+#
+# Scope:    namespace (NyxNetworkPolicy)
+# Enforces: allow Linux frontend → Windows sitecore-cd on TCP 8080
+# Docs:     https://docs.tracenyx.ai/platform/windows-wfp
+# ─────────────────────────────────────────────────────────────
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxNetworkPolicy
+metadata:
+  name: frontend-egress-allow-sitecore-cd
+  namespace: cloudmart-frontend
+  annotations:
+    nyx.tracenyx.io/description: "Allow Linux frontend egress to Windows sitecore-cd (eBPF-enforced source side)."
+spec:
+  enforcement: enforce
+  priority: 100
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+    - Egress
+  egress:
+    - decision: Allow
+      toNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: sitecore-cd
+      toPodSelector:
+        matchLabels:
+          app: sitecore-cd
+      ports:
+        - port: 8080
+          protocol: TCP
+
+---
+
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxNetworkPolicy
+metadata:
+  name: sitecore-cd-ingress-from-frontend
+  namespace: sitecore-cd
+  annotations:
+    nyx.tracenyx.io/description: "Allow Windows sitecore-cd ingress from Linux frontend (WFP-enforced destination side)."
+spec:
+  enforcement: enforce
+  priority: 100
+  podSelector:
+    matchLabels:
+      app: sitecore-cd
+  policyTypes:
+    - Ingress
+  ingress:
+    - decision: Allow
+      fromNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cloudmart-frontend
+      fromPodSelector:
+        matchLabels:
+          app: frontend
+      ports:
+        - port: 8080
+          protocol: TCP

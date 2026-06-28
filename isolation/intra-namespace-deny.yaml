@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────
+# Intra-namespace deny (prevent lateral movement)
+#
+# Denies pod-to-pod ingress and egress within a single namespace by
+# default. Every pod in the namespace is isolated from its peers
+# unless a specific allow reopens the path. Combined with namespace
+# -band allows (priority 100), this contains lateral movement: a
+# compromised pod cannot freely reach its neighbours.
+#
+# Specific allowed paths fire first at priority 100 and punch
+# through this priority 10000 baseline.
+#
+# Scope:    cluster-wide (NyxClusterNetworkPolicy, tier: platform)
+# Enforces: deny intra-namespace pod-to-pod traffic by default
+# Docs:     https://docs.tracenyx.ai/concepts/lateral-movement
+# ─────────────────────────────────────────────────────────────
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxClusterNetworkPolicy
+metadata:
+  name: cloudmart-api-deny-intra-namespace
+  annotations:
+    nyx.tracenyx.io/description: "Deny intra-namespace traffic in cloudmart-api by default. Specific paths are reopened by namespace-band allow policies."
+spec:
+  tier: platform
+  priority: 10000
+  enforcement: enforce
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: cloudmart-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - decision: Deny
+      fromNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cloudmart-api
+  egress:
+    - decision: Deny
+      toNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cloudmart-api

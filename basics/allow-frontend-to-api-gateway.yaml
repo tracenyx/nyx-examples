@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────
+# Allow frontend → api-gateway
+#
+# Restores a single legitimate cross-namespace path on top of a
+# default-deny baseline. Both halves are required because the
+# baseline denies both directions:
+#   - egress allow on the frontend pod (source side)
+#   - ingress allow on the api-gateway pod (destination side)
+# Priority 100 (namespace band) evaluates before the priority
+# 10000 baseline, so the allow fires first for matching traffic.
+#
+# Scope:    namespace (NyxNetworkPolicy)
+# Enforces: allow frontend → api-gateway on TCP 8080, nothing else
+# Docs:     https://docs.tracenyx.ai/guides/allow-legitimate-paths
+# ─────────────────────────────────────────────────────────────
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxNetworkPolicy
+metadata:
+  name: allow-frontend-to-api-gateway-egress
+  namespace: cloudmart-frontend
+  annotations:
+    nyx.tracenyx.io/description: "Allow frontend egress to api-gateway"
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  priority: 100
+  enforcement: enforce
+  policyTypes:
+    - Egress
+  egress:
+    - decision: Allow
+      toNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cloudmart-api
+      toPodSelector:
+        matchLabels:
+          app: api-gateway
+      ports:
+        - port: 8080
+          protocol: TCP
+
+---
+
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxNetworkPolicy
+metadata:
+  name: allow-api-gateway-ingress-from-frontend
+  namespace: cloudmart-api
+  annotations:
+    nyx.tracenyx.io/description: "Allow api-gateway ingress from frontend"
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  priority: 100
+  enforcement: enforce
+  policyTypes:
+    - Ingress
+  ingress:
+    - decision: Allow
+      fromNamespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cloudmart-frontend
+      fromPodSelector:
+        matchLabels:
+          app: frontend
+      ports:
+        - port: 8080
+          protocol: TCP

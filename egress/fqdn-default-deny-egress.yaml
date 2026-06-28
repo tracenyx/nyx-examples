@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────
+# FQDN egress with explicit default-deny
+#
+# A self-contained egress lockdown: allow egress to one approved
+# hostname, then deny everything else with a catch-all. This stops
+# data exfiltration even to a lookalike endpoint that shares the
+# same IP ranges as the approved one — Nyx matches the TLS SNI, so
+# the approved hostname is allowed and any other hostname falls
+# through to the Deny rule, even on the same IP.
+#
+# Unlike allow-fqdn-egress.yaml (which leans on a separate baseline
+# deny), this policy carries its own default-deny, so it stands
+# alone.
+#
+# Scope:    namespace (NyxNetworkPolicy)
+# Enforces: allow one approved FQDN on TCP 443, deny all other egress
+# Docs:     https://docs.tracenyx.ai/guides/fqdn-egress
+# ─────────────────────────────────────────────────────────────
+apiVersion: nyx.tracenyx.io/v1alpha1
+kind: NyxNetworkPolicy
+metadata:
+  name: allow-approved-storage
+  namespace: nyx-fqdn-demo
+  annotations:
+    nyx.tracenyx.io/description: "Allow egress to the approved Azure Storage account only; deny all other egress."
+spec:
+  enforcement: enforce
+  priority: 100
+  podSelector:
+    matchLabels:
+      app: storage-client
+  policyTypes:
+    - Egress
+  egress:
+    - decision: Allow
+      toFqdn:
+        - matchName: nyxdemoapp.blob.core.windows.net
+      ports:
+        - port: 443
+          protocol: TCP
+    - decision: Deny
+      toNamespaceSelector: {}
